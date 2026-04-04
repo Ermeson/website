@@ -76,8 +76,8 @@ export const TerminalBackground = () => {
     ];
 
     const fontSize = 14;
-    const lineHeight = 20;
-    const activeLines: { text: string; y: number; opacity: number }[] = [];
+    const lineHeight = 22;
+    const activeLines: { text: string; y: number; targetY: number; opacity: number }[] = [];
     let lastLineTime = 0;
     let lineIndex = 0;
 
@@ -85,13 +85,38 @@ export const TerminalBackground = () => {
       ctx.clearRect(0, 0, width, height);
       ctx.font = `${fontSize}px "JetBrains Mono", "Fira Code", monospace`;
 
-      // Add new line periodically
-      if (time - lastLineTime > 400 + Math.random() * 600) {
+      // Determine delay based on line content
+      const currentLine = terminalLines[lineIndex];
+      const isCommand = currentLine.startsWith("ermeson@portfolio:~$");
+      const isOutput = currentLine.startsWith("✓") || currentLine.startsWith("dist/");
+      
+      let delay = 100; // Default fast output
+      if (isCommand) {
+        delay = 1200 + Math.random() * 800; // Commands have a "thinking" pause
+      } else if (isOutput) {
+        delay = 50; // Build output is very fast
+      } else if (Math.random() > 0.7) {
+        delay = 400 + Math.random() * 400; // Random pauses in execution
+      }
+
+      // Add new line
+      if (time - lastLineTime > delay) {
+        const startY = height - 20;
+        
         activeLines.push({
-          text: terminalLines[lineIndex],
-          y: height + fontSize,
+          text: currentLine,
+          y: startY + lineHeight,
+          targetY: startY,
           opacity: 0.4
         });
+
+        // Shift all existing lines up
+        activeLines.forEach((line, idx) => {
+          if (idx < activeLines.length - 1) {
+            line.targetY -= lineHeight;
+          }
+        });
+
         lineIndex = (lineIndex + 1) % terminalLines.length;
         lastLineTime = time;
       }
@@ -100,19 +125,21 @@ export const TerminalBackground = () => {
       for (let i = activeLines.length - 1; i >= 0; i--) {
         const line = activeLines[i];
         
-        // Calculate opacity based on position (fade out at the top)
-        const fadeStart = height * 0.2;
+        // Mechanical scroll: move quickly towards targetY
+        line.y += (line.targetY - line.y) * 0.15;
+
+        // Fade out at the top
+        const fadeStart = height * 0.25;
         let currentOpacity = line.opacity;
         if (line.y < fadeStart) {
-          currentOpacity = (line.y / fadeStart) * line.opacity;
+          currentOpacity = Math.max(0, (line.y / fadeStart) * line.opacity);
         }
 
-        ctx.fillStyle = `rgba(255, 255, 255, ${currentOpacity})`;
-        ctx.fillText(line.text, 20, line.y);
+        if (currentOpacity > 0) {
+          ctx.fillStyle = `rgba(255, 255, 255, ${currentOpacity})`;
+          ctx.fillText(line.text, 20, line.y);
+        }
         
-        // Move line up
-        line.y -= 0.8;
-
         // Remove if off screen
         if (line.y < -fontSize) {
           activeLines.splice(i, 1);

@@ -270,7 +270,7 @@ export default function App() {
             </h1>
           </div>
 
-          <p className="text-brand-gray text-base md:text-xl">
+          <p className="text-white text-base md:text-xl">
             Helping 40K+ designers become better, faster, and higher paid everyday.
           </p>
         </motion.div>
